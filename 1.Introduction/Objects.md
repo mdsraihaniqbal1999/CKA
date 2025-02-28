@@ -271,6 +271,4 @@ Here’s an example of how resources are connected:
      type: ClusterIP
    ```
 
----
 
-This guide should help you understand Kubernetes objects, their hierarchy, and when to use them for your CKA exam. Good luck! 😊
