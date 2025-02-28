@@ -1,6 +1,6 @@
 # Kubernetes (CKA) Command Cheatsheet
 
-This cheatsheet covers the essential commands you'll need for the Certified Kubernetes Administrator (CKA) exam, organized by category with explanations of when to use each command.
+This comprehensive cheatsheet covers all essential commands you'll need for the Certified Kubernetes Administrator (CKA) exam, organized by category with explanations of when to use each command.
 
 ## Table of Contents
 - [Core kubectl Commands](#core-kubectl-commands)
@@ -14,7 +14,10 @@ This cheatsheet covers the essential commands you'll need for the Certified Kube
 - [Cluster Management](#cluster-management)
 - [Troubleshooting Commands](#troubleshooting-commands)
 - [Logging & Monitoring](#logging--monitoring)
+- [Resource Consumption](#resource-consumption)
+- [API Resources Reference](#api-resources-reference)
 - [Exam-Specific Tips](#exam-specific-tips)
+- [Command Generation Shortcuts](#command-generation-shortcuts)
 
 ## Core kubectl Commands
 
@@ -166,6 +169,58 @@ This cheatsheet covers the essential commands you'll need for the Certified Kube
 | `kubectl logs -f <pod> -n <namespace>` | Stream pod logs | When monitoring real-time application behavior |
 | `kubectl logs --tail=50 <pod>` | Show recent pod logs | When checking recent application activity |
 | `kubectl logs <pod> -c <container>` | View specific container logs | When working with multi-container pods |
+
+## Resource Consumption
+
+| Command | Description | When to Use |
+|---------|-------------|------------|
+| `kubectl top nodes` | Show node resource consumption | When identifying overloaded nodes |
+| `kubectl top nodes --sort-by=cpu` | Sort nodes by CPU usage | When finding CPU-intensive nodes |
+| `kubectl top nodes --sort-by=memory` | Sort nodes by memory usage | When finding memory-intensive nodes |
+| `kubectl top pods --all-namespaces` | Show all pod resource usage | When monitoring cluster-wide consumption |
+| `kubectl top pods --all-namespaces --sort-by=cpu` | Sort all pods by CPU | When finding CPU-intensive pods |
+| `kubectl top pods --all-namespaces --sort-by=memory` | Sort all pods by memory | When finding memory-intensive pods |
+| `kubectl top pods -n <namespace> --sort-by=cpu` | Sort namespace pods by CPU | When finding namespace resource hogs |
+| `kubectl describe nodes | grep -A 5 "Allocated resources"` | Show node allocations | When checking node resource allocation |
+| `kubectl get pods -o custom-columns=NAME:.metadata.name,CPU:.spec.containers[*].resources.requests.cpu,MEM:.spec.containers[*].resources.requests.memory` | Show pod resource requests | When checking resource allocations |
+| `kubectl get pods -o custom-columns=NAME:.metadata.name,CPU:.spec.containers[*].resources.limits.cpu,MEM:.spec.containers[*].resources.limits.memory` | Show pod resource limits | When checking resource constraints |
+
+## API Resources Reference
+
+| Resource Type | Short Name | API Group | Namespaced | Description | When to Use |
+|---------------|------------|-----------|------------|-------------|------------|
+| `configmaps` | `cm` | v1 | Yes | Store configuration data | When decoupling config from pod specs |
+| `persistentvolumeclaims` | `pvc` | v1 | Yes | Request storage resources | When requesting persistent storage |
+| `persistentvolumes` | `pv` | v1 | No | Represent storage in cluster | When providing cluster-wide storage |
+| `pods` | `po` | v1 | Yes | Smallest deployable units | When running containers |
+| `replicationcontrollers` | `rc` | v1 | Yes | Ensure pod count | When maintaining identical pods (legacy) |
+| `secrets` | | v1 | Yes | Store sensitive data | When managing sensitive information |
+| `services` | `svc` | v1 | Yes | Expose pods as network service | When providing stable endpoints |
+| `daemonsets` | `ds` | apps/v1 | Yes | Run pods on all/select nodes | When running background processes |
+| `deployments` | `deploy` | apps/v1 | Yes | Declarative pod updates | When deploying applications |
+| `replicasets` | `rs` | apps/v1 | Yes | Maintain stable replica count | When ensuring pod counts |
+| `statefulsets` | `sts` | apps/v1 | Yes | Manage stateful applications | When maintaining pod identity |
+| `cronjobs` | `cj` | batch/v1 | Yes | Run jobs on schedule | When running periodic tasks |
+| `jobs` | | batch/v1 | Yes | Run one-off tasks | When running batch processes |
+| `ingresses` | `ing` | networking.k8s.io/v1 | Yes | Manage external access | When exposing HTTP/HTTPS routes |
+| `networkpolicies` | `netpol` | networking.k8s.io/v1 | Yes | Pod network isolation | When controlling pod traffic |
+| `clusterroles` | | rbac.authorization.k8s.io/v1 | No | Cluster-wide permissions | When defining cluster-level permissions |
+| `clusterrolebindings` | | rbac.authorization.k8s.io/v1 | No | Bind users to clusterroles | When assigning cluster-level permissions |
+| `roles` | | rbac.authorization.k8s.io/v1 | Yes | Namespace permissions | When defining namespace-level permissions |
+| `rolebindings` | | rbac.authorization.k8s.io/v1 | Yes | Bind users to roles | When assigning namespace permissions |
+| `storageclasses` | `sc` | storage.k8s.io/v1 | No | Define storage classes | When defining storage provisioning types |
+
+**Common API Resources Commands:**
+
+| Command | Description | When to Use |
+|---------|-------------|------------|
+| `kubectl api-resources` | List all API resources | When needing resource types and short names |
+| `kubectl api-resources --namespaced=true` | List namespaced resources | When checking what can exist in a namespace |
+| `kubectl api-resources --namespaced=false` | List cluster-wide resources | When working with cluster-level resources |
+| `kubectl api-resources -o name` | List resource names only | When scripting against resources |
+| `kubectl api-resources --verbs=list,get` | Filter resources by verb | When checking what you can view |
+| `kubectl api-resources -o wide` | Show more details | When needing API group information |
+| `kubectl api-resources --api-group=apps` | Filter by API group | When working with specific resource types |
 
 ## Exam-Specific Tips
 
