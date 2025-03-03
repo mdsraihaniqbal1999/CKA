@@ -1,0 +1,585 @@
+# Kubernetes Namespaces for CKA Exam
+
+## Table of Contents
+- [Introduction to Namespaces](#introduction-to-namespaces)
+- [Namespace-Scoped vs Cluster-Scoped Resources](#namespace-scoped-vs-cluster-scoped-resources)
+- [Namespace Use Cases](#namespace-use-cases)
+- [Working with Namespaces](#working-with-namespaces)
+- [Namespace YAML Definition](#namespace-yaml-definition)
+- [Referencing Resources Across Namespaces](#referencing-resources-across-namespaces)
+- [Namespaces and Clusters](#namespaces-and-clusters)
+- [Namespace Best Practices](#namespace-best-practices)
+- [Practical Exercises](#practical-exercises)
+- [Command Cheat Sheet](#command-cheat-sheet)
+- [CKA Exam Tips](#cka-exam-tips)
+
+## Introduction to Namespaces
+
+Namespaces in Kubernetes are virtual clusters within a physical cluster. They provide a mechanism for isolating groups of resources within a single cluster and are a fundamental way to organize and partition Kubernetes objects.
+
+By default, a Kubernetes cluster starts with three namespaces:
+- **default**: The namespace for objects with no other namespace specified
+- **kube-system**: The namespace for objects created by the Kubernetes system
+- **kube-public**: The namespace for resources that should be publicly readable by all users
+
+## Namespace-Scoped vs Cluster-Scoped Resources
+
+Not all Kubernetes resources are namespaced. Some resources are cluster-scoped and exist only at the cluster level.
+
+| Namespace-Scoped Resources | Cluster-Scoped Resources |
+|----------------------------|--------------------------|
+| Pods | Nodes |
+| Services | PersistentVolumes |
+| Deployments | ClusterRoles |
+| ConfigMaps | ClusterRoleBindings |
+| Secrets | Namespaces |
+| ReplicaSets | CustomResourceDefinitions |
+| StatefulSets | StorageClasses |
+| DaemonSets | NodeMetrics |
+| Jobs | ComponentStatuses |
+| CronJobs | PodSecurityPolicies |
+| Ingresses | |
+| PersistentVolumeClaims | |
+| ServiceAccounts | |
+| Roles | |
+| RoleBindings | |
+
+You can check if a resource is namespaced using:
+
+```bash
+kubectl api-resources --namespaced=true
+kubectl api-resources --namespaced=false
+```
+
+## Namespace Use Cases
+
+Namespaces are particularly useful in the following scenarios:
+
+1. **Multi-tenancy**: Divide a cluster among multiple teams or projects
+2. **Resource Quotas**: Apply resource constraints (CPU, memory) to specific namespaces
+3. **Environment Separation**: Create separate development, testing, and production environments
+4. **Service Isolation**: Separate microservices to avoid naming conflicts
+5. **Access Control**: Implement fine-grained access control with RBAC
+6. **Cost Allocation**: Track resource usage per namespace for different teams/projects
+
+## Working with Namespaces
+
+### Basic Namespace Operations
+
+```bash
+# List all namespaces
+kubectl get namespaces
+
+# Create a namespace
+kubectl create namespace my-namespace
+
+# Set the default namespace for kubectl commands
+kubectl config set-context --current --namespace=my-namespace
+
+# View resources in a specific namespace
+kubectl get pods -n my-namespace
+
+# Delete a namespace (and all its resources)
+kubectl delete namespace my-namespace
+```
+
+## Namespace YAML Definition
+
+Here's a basic YAML definition for creating a namespace:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    environment: dev
+```
+
+To apply this definition:
+
+```bash
+kubectl apply -f namespace.yaml
+```
+
+## Referencing Resources Across Namespaces
+
+Resources within the same namespace can reference each other simply by name. To reference resources across different namespaces, you must use the Fully Qualified Domain Name (FQDN) format:
+
+```
+<service-name>.<namespace>.svc.cluster.local
+```
+
+For example, to reference a service named `database` in the `backend` namespace:
+
+```
+database.backend.svc.cluster.local
+```
+
+### Examples of Cross-Namespace References
+
+1. **Environment Variables**:
+```yaml
+env:
+  - name: DB_URL
+    value: "postgres://user:password@database.backend.svc.cluster.local:5432/mydb"
+```
+
+2. **DNS Resolution in Pod**:
+```bash
+# Inside a pod
+curl http://api-service.frontend.svc.cluster.local:8080
+```
+
+## Namespaces and Clusters
+
+**Important**: Namespaces do NOT span across multiple Kubernetes clusters. They are constrained to a single cluster.
+
+To work with resources across multiple clusters, you need to use:
+- Federation (deprecated)
+- Cluster API
+- Multi-cluster management tools like Rancher, Anthos, or Fleet
+- Custom solutions
+
+### Referencing Resources Across Clusters
+
+There is no native Kubernetes way to reference resources across clusters. You must:
+1. Use external load balancers or ingress controllers
+2. Implement application-level service discovery
+3. Utilize multi-cluster management tooling
+
+## Namespace Best Practices
+
+1. **Use Meaningful Names**: Choose clear, descriptive names for namespaces
+2. **Create Namespace Standards**: Develop organizational standards for namespace creation
+3. **Implement Resource Quotas**: Apply quotas to prevent resource hogging
+4. **Apply Network Policies**: Define network isolation between namespaces
+5. **Use Labels**: Add labels to namespaces for organizational purposes
+6. **Limit Admin Access**: Restrict cluster-admin access and use RBAC
+7. **Create Default Namespaces**: Don't use the `default` namespace for production workloads
+8. **Document Namespace Usage**: Maintain documentation on namespace purpose and ownership
+
+## Practical Exercises
+
+### Exercise 1: Creating and Managing Namespaces
+
+1. Create three namespaces: `development`, `staging`, and `production`:
+
+```bash
+kubectl create namespace development
+kubectl create namespace staging
+kubectl create namespace production
+```
+
+Alternative YAML approach:
+
+```yaml
+# development-ns.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    environment: dev
+```
+
+```bash
+kubectl apply -f development-ns.yaml
+```
+
+2. Verify the namespaces were created:
+
+```bash
+kubectl get namespaces
+```
+
+3. Set your context to use the `development` namespace by default:
+
+```bash
+kubectl config set-context --current --namespace=development
+```
+
+### Exercise 2: Deploying Resources in Different Namespaces
+
+1. Create a simple nginx deployment in the development namespace:
+
+```yaml
+# nginx-dev.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: development
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+```
+
+```bash
+kubectl apply -f nginx-dev.yaml
+```
+
+2. Create a service for the nginx deployment:
+
+```yaml
+# nginx-service-dev.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: development
+spec:
+  selector:
+    app: nginx
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+```
+
+```bash
+kubectl apply -f nginx-service-dev.yaml
+```
+
+3. Deploy the same application in the production namespace with different configuration:
+
+```yaml
+# nginx-prod.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: production
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+```
+
+```bash
+kubectl apply -f nginx-prod.yaml
+```
+
+### Exercise 3: Resource Quotas for Namespaces
+
+1. Create a resource quota for the development namespace:
+
+```yaml
+# dev-quota.yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: development
+spec:
+  hard:
+    pods: "10"
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+```
+
+```bash
+kubectl apply -f dev-quota.yaml
+```
+
+2. Verify the quota:
+
+```bash
+kubectl get resourcequota -n development
+```
+
+### Exercise 4: Cross-Namespace Communication
+
+1. Create a database deployment in the `backend` namespace:
+
+```bash
+kubectl create namespace backend
+```
+
+```yaml
+# db-backend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        env:
+        - name: POSTGRES_PASSWORD
+          value: "mysecretpassword"
+        ports:
+        - containerPort: 5432
+```
+
+```bash
+kubectl apply -f db-backend.yaml
+```
+
+2. Create a service for the database:
+
+```yaml
+# db-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-db
+  namespace: backend
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+```
+
+```bash
+kubectl apply -f db-service.yaml
+```
+
+3. Create a web application in the `frontend` namespace that connects to the database:
+
+```bash
+kubectl create namespace frontend
+```
+
+```yaml
+# web-frontend.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web-app
+  template:
+    metadata:
+      labels:
+        app: web-app
+    spec:
+      containers:
+      - name: web-app
+        image: nginx:1.21
+        env:
+        - name: DB_HOST
+          value: "postgres-db.backend.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_PASSWORD
+          value: "mysecretpassword"
+        ports:
+        - containerPort: 80
+```
+
+```bash
+kubectl apply -f web-frontend.yaml
+```
+
+4. Verify cross-namespace communication:
+
+```bash
+# Get a shell to a frontend pod
+kubectl exec -it $(kubectl get pod -n frontend -l app=web-app -o jsonpath="{.items[0].metadata.name}") -n frontend -- /bin/bash
+
+# Inside the pod, try connecting to the database
+apt-get update && apt-get install -y netcat
+nc -zv postgres-db.backend.svc.cluster.local 5432
+```
+
+### Exercise 5: Role-Based Access Control (RBAC) with Namespaces
+
+1. Create a service account in the development namespace:
+
+```yaml
+# dev-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dev-user
+  namespace: development
+```
+
+```bash
+kubectl apply -f dev-sa.yaml
+```
+
+2. Create a role that allows reading pods in the development namespace:
+
+```yaml
+# dev-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: development
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+```
+
+```bash
+kubectl apply -f dev-role.yaml
+```
+
+3. Bind the role to the service account:
+
+```yaml
+# dev-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+  namespace: development
+subjects:
+- kind: ServiceAccount
+  name: dev-user
+  namespace: development
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+
+```bash
+kubectl apply -f dev-rolebinding.yaml
+```
+
+4. Test the permissions:
+
+```bash
+# Get the token of the service account
+TOKEN=$(kubectl create token dev-user -n development)
+
+# Use the token to list pods
+kubectl get pods -n development --token=$TOKEN
+```
+
+## Command Cheat Sheet
+
+| Command | Description |
+|---------|-------------|
+| `kubectl get ns` | List all namespaces |
+| `kubectl get ns <name>` | Get details of a specific namespace |
+| `kubectl describe ns <name>` | Get detailed information about a namespace |
+| `kubectl create ns <name>` | Create a new namespace |
+| `kubectl delete ns <name>` | Delete a namespace and all its resources |
+| `kubectl config set-context --current --namespace=<name>` | Set the default namespace for the current context |
+| `kubectl get all -n <name>` | Get all resources in a namespace |
+| `kubectl api-resources --namespaced=true` | List all namespaced resources |
+| `kubectl api-resources --namespaced=false` | List all cluster-scoped resources |
+| `kubectl get pods -n <name>` | Get pods in a specific namespace |
+| `kubectl get pods --all-namespaces` | Get pods across all namespaces |
+| `kubectl -n <name> get pods` | Another way to get pods in a specific namespace |
+| `kubectl apply -f <file> -n <name>` | Apply a YAML file to a specific namespace |
+| `kubectl create quota <name> -n <namespace> --hard=<resources>` | Create a resource quota for a namespace |
+| `kubectl get resourcequota -n <namespace>` | Get resource quotas in a namespace |
+| `kubectl label namespace <name> <label>=<value>` | Add a label to a namespace |
+| `kubectl create serviceaccount <name> -n <namespace>` | Create a service account in a namespace |
+| `kubectl get events -n <namespace>` | Get events in a namespace |
+
+## CKA Exam Tips
+
+1. **Know the Commands**: Memorize essential namespace commands for the exam
+   ```bash
+   kubectl create namespace <name>
+   kubectl get ns
+   kubectl describe ns <name>
+   kubectl -n <namespace> get pods
+   ```
+
+2. **Resource References**: Remember the format for cross-namespace references
+   ```
+   <resource-name>.<namespace>.svc.cluster.local
+   ```
+
+3. **Context Switching**: Practice switching between namespaces quickly
+   ```bash
+   kubectl config set-context --current --namespace=<namespace>
+   ```
+
+4. **Cluster-Scoped vs Namespace-Scoped**: Know which resources belong to which scope
+
+5. **Time Management**: Don't spend too much time on complex namespace questions
+
+6. **Default Namespaces**: Know the default namespaces (default, kube-system, kube-public)
+
+7. **RBAC Knowledge**: Understand how RBAC works with namespaces
+
+8. **Command Aliases**: Use alias `k` for `kubectl` in the exam to save time
+   ```bash
+   alias k=kubectl
+   ```
+
+9. **YAML Templates**: Keep basic namespace YAML templates in mind for quick creation
+
+10. **Imperative Commands**: Use imperative commands when possible to save time
+    ```bash
+    kubectl create namespace my-namespace
+    ```
+
+## When to Use Namespaces
+
+### Use Namespaces When:
+- Working in multi-tenant environments
+- Organizing applications by team, project, or environment
+- Implementing resource quotas
+- Applying access controls to different groups
+- Creating microservice architectures
+- Segregating cluster resources
+
+### When Not to Use Namespaces:
+- For small clusters with few applications
+- For resources that need to be accessed globally
+- When managing simple applications with a single team
+- For cluster-scoped resources (they can't be placed in namespaces)
+- When creating administrative boundaries might complicate operations
+
+Remember that namespaces are contained within a single cluster and cannot span across multiple clusters. For multi-cluster management, you'll need other tools and approaches.
