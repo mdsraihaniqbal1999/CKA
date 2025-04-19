@@ -1,0 +1,104 @@
+# Kubernetes PersistentVolume (PV) and PersistentVolumeClaim (PVC) Creation
+
+## Question
+
+ [question link](https://killercoda.com/sachin/course/CKA/pv-pvc).
+
+### Step 1: Create a Persistent Volume (PV)
+
+- **Name**: `gold-pv-cka`  
+- **Capacity**: `50Mi`  
+- **Volume Type**: `hostPath`  
+- **Path**: `/opt/gold-stc-cka`  
+- **Storage Class**: `gold-stc-cka`  
+- **Node**: Ensure that the PV is created on `node01`, where the `/opt/gold-stc-cka` directory already exists.  
+- **Label**: Apply a label to the PV with key `tier` and value `white`.  
+
+### Step 2: Create a Persistent Volume Claim (PVC)
+
+- **Name**: `gold-pvc-cka`  
+- **Storage Request**: `30Mi` from the PV `gold-pv-cka` using the `matchLabels` criterion.  
+- **Storage Class**: `gold-stc-cka`  
+- **Access Mode**: `ReadWriteMany`  
+
+
+---
+
+## Solution
+
+### Step 1: Create a Persistent Volume (PV)
+
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gold-pv-cka
+  labels:
+    tier: white
+spec:
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: /opt/gold-stc-cka
+  storageClassName: gold-stc-cka
+  persistentVolumeReclaimPolicy: Retain
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - node01
+```
+
+Apply the PV:
+
+```bash
+kubectl apply -f gold-pv-cka.yaml
+```
+
+---
+
+### Step 2: Create a Persistent Volume Claim (PVC)
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gold-pvc-cka
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 30Mi
+  storageClassName: gold-stc-cka
+  selector:
+    matchLabels:
+      tier: white
+```
+
+Apply the PVC:
+
+```bash
+kubectl apply -f gold-pvc-cka.yaml
+```
+
+---
+
+## Verification
+
+Run the following commands to verify:
+
+```bash
+kubectl get pv
+kubectl get pvc
+kubectl describe pv gold-pv-cka
+kubectl describe pvc gold-pvc-cka
+```
+
+
+
